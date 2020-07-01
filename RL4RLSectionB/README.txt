@@ -1,4 +1,4 @@
-These folders contain are scripts used to run and analyze simulations for Section B RL4RL. Here is an overivew:
+These folders contain scripts used to run and analyze simulations for Section B RL4RL. Here is an overivew:
 
 simulation_scripts: this folder contains shell scripts and python scripts. The shell scripts are used to run the simulations which are implemented in python scripts.
 scimulation_saves: simulations are saved in this folder. 
