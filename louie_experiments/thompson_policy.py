@@ -437,6 +437,173 @@ def calculate_thompson_single_bandit(source, num_actions, dest, models=None,
         #print("sample_number", sample_number)
         return chosen_actions, models
 
+
+def two_phase_random_thompson_policy(source, num_actions, dest,
+                                    random_dur, models=None, random_start = 1,
+                                    action_mode=ActionSelectionMode.prob_is_best, forced=forced_actions(),
+                                    relearn=True, epsilon = 0, get_context=get_context, batch_size = 1, burn_in_size = 1):
+    '''
+    Calculates non-contextual thompson sampling actions and weights.
+    :param source: simulated single-bandit data file with default rewards for each action and true probs.
+    :param num_actions: number of actions for this bandit
+    :param dest: outfile for printing the chosen actions and received rewards.
+    :param models: models for each action's probability distribution.
+    :param random_dur: the number of iterations that random policy will be used (must: random_dur+random_start-1 <= n)
+    :param random_start: specifies the iteration in which the policy will switch to random policy (default=1)
+    :param action_mode: Indicates how to select actions, see ActionSelectionMode. thompson_policy.ActionSelectionMode.prob_is_best = 0
+    :param forced: Optional, indicates to process only up to a certain time step or force take specified actions.
+    :param relearn: Optional, at switch time, whether algorithm relearns on previous time steps using actions taken previously.
+    :param epsilon: Optional, if > 0 then we choose a random action epsilon proportion of the time
+    '''
+    # number of trials used to run Thompson Sampling to compute expectation stats
+    # set to small value when debugging for faster speed
+    num_trials_prob_best_action = int(1e4)
+
+    if models == None:
+        models = [BetaBern(success=1, failure=1) for cond in range(num_actions)]
+
+    with open(source, newline='') as inf, open(dest, 'w', newline='') as outf:
+        reader = csv.DictReader(inf)
+
+        count_n = len(list(reader))#sum(1 for _ in reader)
+        inf.seek(0)
+        reader = csv.DictReader(inf)
+
+        if random_dur+random_start-1 > count_n:
+            raise ValueError("random_dur+random_start-1 must be lower or equal to number of samples")
+
+        # Construct output column header names
+        field_names = reader.fieldnames
+        field_names_out, group_header = create_headers(field_names, num_actions)
+
+        print(','.join(group_header), file=outf)
+
+        writer = csv.DictWriter(outf, fieldnames=field_names_out)
+        writer.writeheader()
+
+        sample_number = 0
+        cumulative_sample_regret = 0
+        cumulative_expected_regret = 0
+ 
+        initial_batch = True
+
+        chosen_actions = []
+        action_batch = []
+        reward_batch = []
+
+        for row in reader: #going through trials
+            sample_number += 1
+            #trial_number = num_steps_prev + sample_number
+
+            # get context features
+            context = get_context(row)
+            if initial_batch:
+                batch_size_curr = burn_in_size
+            else:
+                batch_size_curr = batch_size
+
+            should_update_posterior = True
+            if sample_number >= random_start and sample_number < (random_dur+random_start):
+                action = np.random.randint(num_actions)
+                samples = [models[a].draw_expected_value(context) for a in range(num_actions)]
+            elif len(forced.actions) == 0 or sample_number > len(forced.actions):
+                # first decide which arm we'd pull using Thompson
+                # (do the random sampling, the max is the one we'd choose)
+                samples = [models[a].draw_expected_value(context) for a in range(num_actions)]
+
+                if epsilon > 0 and np.random.rand() < epsilon:
+                    action = np.random.randint(num_actions)
+                elif action_mode == ActionSelectionMode.prob_is_best:
+                    # find the max of samples[i] etc and choose an arm
+                    action = np.argmax(samples)
+                else:
+                    # take action in proportion to expected rewards
+                    # draw samples and normalize to use as a discrete distribution
+                    # action is taken by sampling from this discrete distribution
+                    probs = samples / np.sum(samples)
+                    rand = np.random.rand()
+                    for a in range(num_actions):
+                        if rand <= probs[a]:
+                            action = a
+                            break
+                        rand -= probs[a]
+
+            else:
+                samples = [0 for a in range(num_actions)]
+                # take forced action if requested
+                action = forced.actions[sample_number - 1]
+
+                if relearn == False:
+                    should_update_posterior = False
+
+            # get reward signals
+            observed_rewards = [int(row[HEADER_ACTUALREWARD.format(a + 1)]) for a in range(num_actions)]
+            reward = observed_rewards[action]
+
+            action_batch.append(action)
+            reward_batch.append(reward)
+
+            if should_update_posterior:
+                # update posterior distribution with observed reward
+                # converted to range {-1,1}
+                if (sample_number % batch_size_curr == 0):
+                   # print("updating batches")
+                    #print("batch_size_curr, initial_batch, sample_number:", batch_size_curr, initial_batch, sample_number)
+                    #print("action, reward len", len(action_batch), len(reward_batch))
+                    for action, reward in zip(action_batch, reward_batch):#Update model based on a batch of actions and rewards
+                        models[action].update_posterior(context, 2 * reward - 1)
+
+                    action_batch = [] #reset batch
+                    reward_batch = []
+                    initial_batch = False
+
+            # only return action chosen up to specified time step
+            if forced.time_step > 0 and sample_number <= forced.time_step:
+                chosen_actions.append(action)
+                # save the model state in order so we can restore it
+                # after switching to the true reward data.
+                if sample_number == forced.time_step:
+                    for a in range(num_actions):
+                        models[a].save_state()
+
+            # copy the input data to output file
+            out_row = {}
+
+            for i in range(len(reader.fieldnames)):
+                out_row[reader.fieldnames[i]] = row[reader.fieldnames[i]]
+
+            ''' write performance data (e.g. regret) '''
+            optimal_action_from_file = row[HEADER_OPTIMALACTION]
+            if ';' in optimal_action_from_file:
+                all_optimal_actions = [int(a) for a in optimal_action_from_file.split(';')]
+            else:
+                all_optimal_actions = [int(optimal_action_from_file)]
+            optimal_action = all_optimal_actions[0] - 1
+            optimal_action_reward = observed_rewards[optimal_action]
+            sample_regret = optimal_action_reward - reward
+            cumulative_sample_regret += sample_regret
+
+            true_probs = [float(row[HEADER_TRUEPROB.format(a + 1)]) for a in range(num_actions)]
+
+            # # The oracle always chooses the best arm, thus expected reward
+            # # is simply the probability of that arm getting a reward.
+            optimal_expected_reward = true_probs[optimal_action] #* num_trials_prob_best_action
+            expected_regret = true_probs[action] - optimal_expected_reward
+            cumulative_expected_regret += expected_regret
+            chosen_action_counts = 0
+ 
+            write_performance(out_row, action, all_optimal_actions, reward,
+                              sample_regret, cumulative_sample_regret,
+                              expected_regret, cumulative_expected_regret)
+
+            write_parameters(out_row, action, samples, models,
+                             chosen_action_counts, num_actions, num_trials_prob_best_action, context)
+
+            writer.writerow(out_row)
+        #print("sample_number", sample_number)
+        return chosen_actions, models
+
+
 def calculate_thompson_switch_to_fixed_policy(source, num_actions, dest, num_actions_before_switch, models=None, 
                                      switch_to_best_if_nonsignificant=True,
                                      action_mode=ActionSelectionMode.prob_is_best, forced=forced_actions(),

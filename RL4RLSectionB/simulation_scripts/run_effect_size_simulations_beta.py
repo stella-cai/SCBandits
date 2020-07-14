@@ -245,7 +245,7 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory, succe
             models = [beta_bernoulli.BetaBern(success=successPrior, failure=failurePrior) for _ in range(len(prob_per_arm))]
 
 
-            thompson_policy.calculate_thompson_single_bandit(reordered_reward_file, 
+            '''thompson_policy.calculate_thompson_single_bandit(reordered_reward_file, 
                                          num_actions=len(prob_per_arm), 
                                          dest= cur_output_file, 
                                          models=models, 
@@ -254,8 +254,21 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory, succe
                                          forced = forced,
                                          batch_size = batch_size, 
                                          burn_in_size = burn_in_size)
-           # num_steps_prev = num_steps
-            
+            '''
+            # num_steps_prev = num_steps
+            thompson_policy.two_phase_random_thompson_policy(reordered_reward_file, 
+                                         num_actions=len(prob_per_arm), 
+                                         dest= cur_output_file, 
+                                         random_dur=20,
+                                         models=models,
+                                         random_start=1,
+                                         action_mode=thompson_policy.ActionSelectionMode.prob_is_best, 
+                                         relearn=True,
+                                         forced = forced,
+                                         batch_size = batch_size, 
+                                         burn_in_size = burn_in_size)
+
+
 def run_simulations_empirical_rewards(num_sims, reward_file, experiment_id, reward_header, is_cost, 
                                       outfile_directory, successPrior = 1, failurePrior = 1,  forceActions = 0,
                                       shuffle_data = False):

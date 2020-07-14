@@ -146,7 +146,8 @@ def generate_file(true_probs, num_rows, out_file):
 
             # set expected optimal action, which is just the action with highest probability
             # of generating a reward
-            current_row[HEADER_OPTIMALACTION] = np.argmax(probs) + 1
+            #current_row[HEADER_OPTIMALACTION] = np.argmax(probs) + 1
+            current_row[HEADER_OPTIMALACTION] = ";".join(str(x) for x in np.nonzero([False]+(probs == np.max(probs)).tolist())[0].tolist())
 
             writer.writerow(current_row)
 
