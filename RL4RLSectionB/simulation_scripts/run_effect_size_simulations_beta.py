@@ -154,7 +154,6 @@ def calculate_statistics_from_sims(outfile_directory, num_sims, step_sizes, effe
             cur_row = make_stats_row_from_df(output_file, True, effect_size, alpha)
             cur_row['num_steps'] = num_steps
             cur_row['sim'] = i
-                                                                   
             rows.append(cur_row)
     # Now do some aggregating
     df = pd.DataFrame(rows, columns=['num_steps', 'sim', 'sample_size_1', 'sample_size_2', 'mean_1','mean_2',\
@@ -259,7 +258,7 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory, succe
             thompson_policy.two_phase_random_thompson_policy(reordered_reward_file, 
                                          num_actions=len(prob_per_arm), 
                                          dest= cur_output_file, 
-                                         random_dur=20,
+                                         random_dur=100,
                                          models=models,
                                          random_start=1,
                                          action_mode=thompson_policy.ActionSelectionMode.prob_is_best, 
@@ -402,6 +401,8 @@ def main():
         print("center", center)
     #step_sizes = [math.ceil(n/2), n, 2*n] # These differ from the version for normal because in normal, n represented size for one cond rather than overall size
     step_sizes = [math.ceil(n/2), n, 2*n, 4*n] # These differ from the version for normal because in normal, n represented size for one cond rather than overall size
+    #Arghavan
+    step_sizes = [n]
 
     print("prob_per_arm", prob_per_arm)
     if len(sys.argv) > 7 and sys.argv[7].startswith("forceActions"):

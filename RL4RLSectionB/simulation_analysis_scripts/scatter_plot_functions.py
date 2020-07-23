@@ -216,13 +216,14 @@ def plot_correlation(fig, ax, df_list, x_label, y_label, num_steps, ax_idx):
      #  handles, labels = ax.get_legend_handles_labels()
     
     #   fig.legend(handles, ["a","g"], loc='upper right', prop={'size': 50})
-       
 
 
-
-def scatter_correlation_helper_outer(df = None, df_eg0pt1 = None, df_eg0pt3 = None, df_unif = None, n = None, num_sims = None, load_df = True, \
-                     title = None,\
-                     df_ts = None):
+def scatter_correlation_helper_outer(df_list=[], df = None, df_eg0pt1 = None,
+        df_eg0pt3 = None, df_unif = None, n = None, num_sims = None,
+        load_df = True, title = None, df_ts = None):
+    
+    if len(df_list):
+        return
 
     alg_key_list = ["TS", "EG0pt1", "EG0pt3", "Uniform"]
     alg_name_list = ["Thompson Sampling (TS)","Epsilon Greedy 0.1 (EG0.1)","Epsilon Greedy 0.3 (EG0.3)", "Uniform"]
