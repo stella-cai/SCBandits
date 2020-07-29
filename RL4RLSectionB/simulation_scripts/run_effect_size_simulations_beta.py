@@ -7,6 +7,7 @@ import argparse
 import math
 import random
 import sys
+import time
 
 import scipy.stats
 sys.path.insert(1, '../../louie_experiments/')
@@ -255,12 +256,12 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory, succe
                                          burn_in_size = burn_in_size)
             '''
             # num_steps_prev = num_steps
-            thompson_policy.two_phase_random_thompson_policy(reordered_reward_file, 
+            thompson_policy.old_two_phase_random_thompson_policy(reordered_reward_file, 
                                          num_actions=len(prob_per_arm), 
                                          dest= cur_output_file, 
-                                         random_dur=100,
+                                         random_dur=0,
                                          models=models,
-                                         random_start=1,
+                                         random_start=0,
                                          action_mode=thompson_policy.ActionSelectionMode.prob_is_best, 
                                          relearn=True,
                                          forced = forced,
@@ -367,6 +368,7 @@ def get_prob_per_arm_from_effect_size(effect_size, center = 0.5):
 #     return args
 
 def main():
+    start_time = time.time()
     recalculate_bandits = True
     
     #batch_size = 1.0
@@ -499,7 +501,10 @@ def main():
     arm_df_by_trial = create_arm_stats_by_step(outfile_directory, num_sims, step_sizes[-1], num_arms)
     arm_stats_figure = effect_size_sim_output_viz.make_by_trial_arm_statistics(arm_df_by_trial, num_arms)
     arm_stats_figure.savefig(outfile_prefix + 'ArmStats.pdf', bbox_inches='tight')
-    
+    end_time = time.time()
+    print('Execution time = %.6f seconds' % (end_time-start_time))
+
+
 def empirical_main():
     # Assumes sys.argv[1] == 'empirical'
     recalculate_bandits = True

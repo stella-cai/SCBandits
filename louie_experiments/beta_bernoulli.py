@@ -1,4 +1,5 @@
 ﻿import numpy as np
+import random
 from base_model import *
 from output_format import *
 
@@ -17,7 +18,7 @@ class BetaBern(BaseModel):
         self.last_failure = failure
 
 
-    def update_posterior(self, x, y):
+    def update_posterior(self, y, x=None):
         # update success/failure counts per observed reward
         if y == 1:
             self.success += 1
@@ -25,7 +26,7 @@ class BetaBern(BaseModel):
             self.failure += 1
     
 
-    def draw_expected_value(self, x, num_samples = 1):
+    def draw_expected_value(self, num_samples = 1):
         
         if num_samples > 1:
             success_tile = self.success * np.ones(num_samples)
@@ -61,7 +62,26 @@ class BetaBern(BaseModel):
         # mean of the current beta distribution
         out_row[H_ALGO_ESTIMATED_PROB.format(action + 1)] = \
             self.success / float(self.success + self.failure)
-    
+
+    def get_parameters(self, context = None):
+        # estimated reward probability for each arm is simply the
+        # mean of the current beta distribution
+        est = self.success / float(self.success + self.failure)
+
+        return [self.success, self.failure, est]
+
+
+    def perform_bernoulli_trials(self, p, n=1):
+        """ Perform n Bernoulli trials with success probability p
+        and return number of successes."""
+        n_success = 0
+        for i in range(n):
+            trial = random.random()
+            if trial < p:
+                n_success += 1
+
+        return n_success
+
     def get_expected_value(self):
         return self.success / float(self.success + self.failure)
 
