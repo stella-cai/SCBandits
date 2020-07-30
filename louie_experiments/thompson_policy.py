@@ -741,7 +741,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
         if should_update_posterior:
             # update posterior distribution with observed reward
             # converted to range {-1,1}
-            if (sample_number % batch_size_curr == 0):
+            if ((sample_number-(random_dur+random_start)) % batch_size_curr == 0) and (sample_number < random_start or sample_number >= (random_dur+random_start)):
                 for action, reward in zip(action_batch, reward_batch):#Update model based on a batch of actions and rewards
                     models[action].update_posterior(2 * reward - 1)
 
