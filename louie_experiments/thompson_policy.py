@@ -660,7 +660,7 @@ def create_output_list(selected_action, optimal_action, reward, expected_regret,
 def two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
                                     action_mode=ActionSelectionMode.prob_is_best, forced=forced_actions(),
-                                    relearn=True, epsilon = 0, get_context=get_context, batch_size = 1, burn_in_size = 1):
+                                    relearn=True, epsilon = 0, get_context=get_context, batch_size = 1):
     '''
     Calculates non-contextual thompson sampling actions and weights.
     :param source: simulated single-bandit data file with default rewards for each action and true probs.
@@ -689,8 +689,6 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     sample_number = 0
     cumulative_expected_regret = 0
 
-    initial_batch = True
-
     chosen_actions = []
     action_batch = []
     reward_batch = []
@@ -699,10 +697,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     for row in range(users_count): #going through trials
         sample_number += 1
 
-        if initial_batch:
-            batch_size_curr = burn_in_size
-        else:
-            batch_size_curr = batch_size
+        batch_size_curr = batch_size
 
         should_update_posterior = True
         if sample_number > random_start and sample_number <= (random_dur+random_start):
@@ -752,7 +747,6 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
 
                 action_batch = [] #reset batch
                 reward_batch = []
-                initial_batch = False
 
         # only return action chosen up to specified time step
         if forced.time_step > 0 and sample_number <= forced.time_step:

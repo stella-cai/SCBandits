@@ -210,8 +210,7 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory,
                             action_mode=thompson_policy.ActionSelectionMode.prob_is_best,
                             relearn=True,
                             forced = forced,
-                            batch_size = batch_size,
-                            burn_in_size = burn_in_size)
+                            batch_size = batch_size)
 
             sim_results.extend(sim_result)
 
