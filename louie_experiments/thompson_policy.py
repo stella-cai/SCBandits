@@ -29,6 +29,25 @@ class ActionSelectionMode(Enum):
     expected_value = 1
 
 
+def create_output_column_names_list_ppd(action_count):
+    column_names = []
+
+    column_names.extend([H_ALGO_ACTION,
+        H_ALGO_OBSERVED_REWARD,
+        H_ALGO_MATCH_OPTIMAL,
+        H_ALGO_REGRET_EXPECTED,
+        H_ALGO_REGRET_EXPECTED_CUMULATIVE])
+
+    for idx in range(1, action_count+1):
+        column_names.append(H_ALGO_ACTION_SUCCESS.format(idx))
+        column_names.append(H_ALGO_ACTION_FAILURE.format(idx))
+        column_names.append(H_ALGO_ESTIMATED_PROB.format(idx))
+
+    for idx in range(1, action_count+1):
+        column_names.append(H_ALGO_ACTION_SAMPLE.format(idx))
+    column_names.append(H_ALGO_EXPLORING)
+    return column_names
+
 def create_output_column_names_list(action_count):
     column_names = []
 
@@ -629,6 +648,34 @@ def old_two_phase_random_thompson_policy(source, num_actions, dest,
         return chosen_actions, chosen_actions,models
 
 
+def create_output_list_ppd(selected_action, optimal_action, reward, expected_regret,
+        cumulative_expected_regret, models, samples, is_exploring, distribution='bernoulli'):
+
+    if distribution != 'bernoulli':
+        raise ValueError('Not implemented yet!')
+
+    data_list = []
+    column_names = []
+
+    data_list.append(selected_action+1)
+    data_list.append(reward)
+    if isinstance(optimal_action, collections.abc.Iterable):
+        data_list.append(1 if (selected_action + 1) in optimal_action else 0)
+    else:
+        data_list.append(1 if optimal_action == (selected_action + 1) else 0)
+    data_list.append(expected_regret)
+    data_list.append(cumulative_expected_regret)
+    for model in models:
+        ls = model.get_parameters()
+        data_list.append(ls[0]) #number of success for a model
+        data_list.append(ls[1]) #number of failures for a model
+        data_list.append(ls[2]) #estimated reward probability
+    for sample in samples:
+        data_list.append(sample)
+
+    data_list.append(is_exploring)
+    return data_list
+
 def create_output_list(selected_action, optimal_action, reward, expected_regret,
         cumulative_expected_regret, models, samples, distribution='bernoulli'):
 
@@ -775,6 +822,134 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
         simulated_results.append(measurements)
 
     column_names = create_output_column_names_list(num_actions)
+
+def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
+                                    random_dur, models=None, random_start = 0,
+                                    action_mode=ActionSelectionMode.prob_is_best, forced=forced_actions(),
+                                    relearn=True, c = 0.1, get_context=get_context, batch_size = 1, resample = True):
+    '''
+    Calculates non-contextual thompson sampling actions and weights.
+    :param source: simulated single-bandit data file with default rewards for each action and true probs.
+    :param num_actions: number of actions for this bandit
+    :param dest: outfile for printing the chosen actions and received rewards.
+    :param models: models for each action's probability distribution.
+    :param random_dur: the number of iterations that random policy will be used (must: random_dur+random_start-1 <= n)
+    :param random_start: specifies the iteration in which the policy will switch to random policy (default=1)
+    :param action_mode: Indicates how to select actions, see ActionSelectionMode. thompson_policy.ActionSelectionMode.prob_is_best = 0
+    :param forced: Optional, indicates to process only up to a certain time step or force take specified actions.
+    :param relearn: Optional, at switch time, whether algorithm relearns on previous time steps using actions taken previously.
+    :param c: c parameter for ppd 
+    '''
+    # number of trials used to run Thompson Sampling to compute expectation stats
+    # set to small value when debugging for faster speed
+
+    if models == None:
+        models = [BetaBern(success=1, failure=1) for cond in range(num_actions)]
+
+    num_actions = len(prob_per_arm)
+    if random_dur+random_start > users_count:
+            raise ValueError("random_dur+random_start must be lower or equal to number of samples")
+
+    optimal_action = ";".join(str(x) for x in np.nonzero([False]+(prob_per_arm == np.max(prob_per_arm)).tolist())[0].tolist())
+
+    sample_number = 0
+    cumulative_expected_regret = 0
+    is_exploring = None
+
+    chosen_actions = []
+    action_batch = []
+    reward_batch = []
+    simulated_results = []
+
+    for row in range(users_count): #going through trials
+        sample_number += 1
+
+        batch_size_curr = batch_size
+
+        should_update_posterior = True
+        if sample_number > random_start and sample_number <= (random_dur+random_start):
+            action = np.random.randint(num_actions)
+            samples = [models[a].draw_expected_value() for a in range(num_actions)]
+        elif len(forced.actions) == 0 or sample_number > len(forced.actions):
+            # first decide which arm we'd pull using Thompson
+            # (do the random sampling, the max is the one we'd choose)
+            samples = [models[a].draw_expected_value() for a in range(num_actions)]
+
+            diff = np.abs(samples[0] -samples[1])
+
+            if diff < c:
+        #        print("exploring, diff, thresh", diff, thresh)
+                    # take a random action
+                is_exploring = 1
+                action = np.random.randint(num_actions)
+            elif action_mode == ActionSelectionMode.prob_is_best:
+                # find the max of samples[i] etc and choose an arm
+                is_exploring = 0
+                if resample == True:
+                    samples = [models[a].draw_expected_value() for a in range(num_actions)]
+                action = np.argmax(samples)
+            else:
+                # take action in proportion to expected rewards
+                # draw samples and normalize to use as a discrete distribution
+                # action is taken by sampling from this discrete distribution
+                probs = samples / np.sum(samples)
+                rand = np.random.rand()
+                for a in range(num_actions):
+                    if rand <= probs[a]:
+                        action = a
+                        break
+                    rand -= probs[a]
+        else:
+            samples = [0 for a in range(num_actions)]
+            # take forced action if requested
+            action = forced.actions[sample_number - 1]
+
+            if relearn == False:
+                should_update_posterior = False
+
+        sample = samples[action]
+        reward = models[action].perform_bernoulli_trials(prob_per_arm[action])
+
+        action_batch.append(action)
+        reward_batch.append(reward)
+
+        if should_update_posterior:
+            # update posterior distribution with observed reward
+            # converted to range {-1,1}
+            if ((sample_number-(random_dur+random_start)) % batch_size_curr == 0) and (sample_number < random_start or sample_number >= (random_dur+random_start)):
+                for action, reward in zip(action_batch, reward_batch):#Update model based on a batch of actions and rewards
+                    models[action].update_posterior(2 * reward - 1)
+
+                action_batch = [] #reset batch
+                reward_batch = []
+
+        # only return action chosen up to specified time step
+        if forced.time_step > 0 and sample_number <= forced.time_step:
+            chosen_actions.append(action)
+            # save the model state in order so we can restore it
+            # after switching to the true reward data.
+            if sample_number == forced.time_step:
+                for a in range(num_actions):
+                    models[a].save_state()
+
+        if ';' in optimal_action:
+            all_optimal_actions = [int(a) for a in optimal_action.split(';')]
+        else:
+            all_optimal_actions = [int(optimal_action)]
+
+        # # The oracle always chooses the best arm, thus expected reward
+        # # is simply the probability of that arm getting a reward.
+        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]] #* num_trials_prob_best_action
+        expected_regret = prob_per_arm[action] - optimal_expected_reward
+        cumulative_expected_regret += expected_regret
+        chosen_action_counts = 0
+
+        measurements = create_output_list_ppd(action, all_optimal_actions,
+            reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
+
+        simulated_results.append(measurements)
+
+    column_names = create_output_column_names_list_ppd(num_actions)
     return simulated_results, column_names, models
 
 
