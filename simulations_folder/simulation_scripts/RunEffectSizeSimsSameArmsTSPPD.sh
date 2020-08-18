@@ -15,7 +15,7 @@ effectSizesB=(0.1 0.2 0.3 0.5); #switching now to 0.1,0.2,0.3,0.5
 
 nsT=(394 64 26);
 nsB=(785 197 88 32); #hard coded sample sizes corresponding to es
-nsB=(785); #All above are subset
+#nsB=(785); #All above are subset
 arrayLength=${#nsB[@]};
 
 bsProps=(0.25);
@@ -33,6 +33,7 @@ echo $armProb
 c_list=(0.1); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
 c_list=(0.08 0.1 0.12); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
 c_list=(0.025 0.05 0.1 0.2 0.3);
+c_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
 
 c_length=${#c_list[@]};
 for ((i=0; i<$arrayLength; i++)); do

@@ -24,7 +24,7 @@ import run_effect_size_simulations
 import statsmodels.stats.api as sms
 import statsmodels.stats.power as smp
 import thompson_policy
-import ts_ppd as ppd
+import output_format
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -37,6 +37,7 @@ PRIOR_PROPORTION_DIFFERENCE = .5 # When making arms that don't have the prior in
 
 action_header ='AlgorithmAction'
 obs_reward_header = 'ObservedRewardofAction'
+ppd_exp_header = "IsExploring"
 
 
 def make_stats_row_from_df(simulations_df, include_power, action_count, effect_size = None, alpha = None):
@@ -45,67 +46,86 @@ def make_stats_row_from_df(simulations_df, include_power, action_count, effect_s
     '''
     #REPLACE cur_data with simulations_df
     #number of actions! action_count
-    step_size = max(simulations_df.index) + 1
+    step_size = max(simulations_df.index) + 1 #will be 4n for instance
+    n = step_size/4 #assumes set to 4n
+    n_size_list = [math.ceil(n/2), int(n), int(2*n), int(4*n)] 
+    print("step_size", step_size)
+    print("n_size_list", n_size_list)
     trials_count = len(simulations_df)
-    sim_num = 0
+    print("trials_count", trials_count)#will go to end, so 4n*num_sims
+    print(simulations_df.columns)
+
     all_rows = []
 
 
-    for idx in range(0, trials_count, step_size):
-        one_sim_df = simulations_df[idx:idx+step_size].copy()
+    for n_size in n_size_list:
+        sim_num = 0
+        for idx in range(0, trials_count, step_size):
+            one_sim_df = simulations_df[idx:idx + n_size].copy()
+            assert(len(one_sim_df) == n_size)
 
-        sample_sizes = np.array([])
-        successes = np.array([])
-        means = np.array([])
-        np.array([])
-        np.array([])
-        for i in range(1, action_count+1):
-            sample_sizes = np.append(sample_sizes, np.sum(one_sim_df[action_header] == i))
-            successes = np.append(successes, np.sum(one_sim_df[one_sim_df[action_header] == i][obs_reward_header]))
-            means = np.append(means, np.mean(one_sim_df[one_sim_df[action_header] == i][obs_reward_header]))
+            cur_row = {}
 
-        #calculate sample size and mean
-        cur_row = {}
-        for i in range(action_count):
-            cur_row['sample_size_{}'.format(i+1)] = sample_sizes[i]
-            cur_row['mean_{}'.format(i+1)] = means[i]
+            prop_exploring_ppd_cuml = np.sum(one_sim_df[ppd_exp_header])/n_size #cumulative
+#            print(one_sim_df["SampleNumber"])
+#            print("n_size", n_size, exploring_this_n)
+            exploring_this_n = one_sim_df[one_sim_df["SampleNumber"] == n_size - 1][ppd_exp_header].iloc[0]#snap shot, conver to idx
 
-        if action_count == 2:
-            #SE = sqrt[(P^hat_A*(1-P^hat_A)/N_A + (P^hat_B*(1-P^hat_B)/N_B]
-            SE = np.sqrt(means[0]*(1 - means[0])/sample_sizes[0] + means[1]*(1 - means[1])/sample_sizes[1])
-            wald_type_stat = (means[0] - means[1])/SE #(P^hat_A - P^hat_b)/SE
+            sample_sizes = np.array([])
+            successes = np.array([])
+            means = np.array([])
+            np.array([])
+            np.array([])
+            for i in range(1, action_count+1):
+                sample_sizes = np.append(sample_sizes, np.sum(one_sim_df[action_header] == i))
+                successes = np.append(successes, np.sum(one_sim_df[one_sim_df[action_header] == i][obs_reward_header]))
+                means = np.append(means, np.mean(one_sim_df[one_sim_df[action_header] == i][obs_reward_header]))
 
-            #print('wald_type_stat:', wald_type_stat)
-            #Two sided, symetric, so compare to 0.05
-            wald_pval = (1 - scipy.stats.norm.cdf(np.abs(wald_type_stat)))*2 
+            #calculate sample size and mean
+            for i in range(action_count):
+                cur_row['sample_size_{}'.format(i+1)] = sample_sizes[i]
+                cur_row['mean_{}'.format(i+1)] = means[i]
 
-            cur_row['wald_type_stat'] = wald_type_stat
-            cur_row['wald_pval'] = wald_pval
+            if action_count == 2:
+                #SE = sqrt[(P^hat_A*(1-P^hat_A)/N_A + (P^hat_B*(1-P^hat_B)/N_B]
+                SE = np.sqrt(means[0]*(1 - means[0])/sample_sizes[0] + means[1]*(1 - means[1])/sample_sizes[1])
+                wald_type_stat = (means[0] - means[1])/SE #(P^hat_A - P^hat_b)/SE
 
-        #calculate total reward
-        cur_row['total_reward'] = np.sum(one_sim_df[obs_reward_header])
-        #calculate power
-        cur_row['ratio'] = sample_sizes[0] / sample_sizes[1]
-        if include_power:
-            cur_row['power'] = smp.GofChisquarePower().solve_power(effect_size,
-                nobs = sum(sample_sizes), n_bins=(2-1)*(2-1) + 1, alpha = alpha)
-        cur_row['actual_es'] = calculate_effect_size(sample_sizes, successes)
+                #print('wald_type_stat:', wald_type_stat)
+                #Two sided, symetric, so compare to 0.05
+                wald_pval = (1 - scipy.stats.norm.cdf(np.abs(wald_type_stat)))*2 
 
-        #calculate chi squared contingency test
-        table = sms.Table(np.stack((successes,sample_sizes - successes)).T)
-        rslt = table.test_nominal_association()
-        cur_row['stat'] = rslt.statistic
-        cur_row['pvalue'] = rslt.pvalue
-        cur_row['df'] = rslt.df
-        # Added to match normal rewards
-        cur_row['statUnequalVar'] = cur_row['stat']
-        cur_row['pvalueUnequalVar'] = cur_row['pvalue']
-        cur_row['dfUnequalVar'] = cur_row['df']
-        cur_row['num_steps'] = max(one_sim_df.index) + 1
-        cur_row['sim'] = sim_num
-        sim_num += 1
+                cur_row['wald_type_stat'] = wald_type_stat
+                cur_row['wald_pval'] = wald_pval
 
-        all_rows.append(cur_row)
+            #calculate total reward
+            cur_row['total_reward'] = np.sum(one_sim_df[obs_reward_header])
+            #calculate power
+            cur_row['ratio'] = sample_sizes[0] / sample_sizes[1]
+            if include_power:
+                cur_row['power'] = smp.GofChisquarePower().solve_power(effect_size,
+                    nobs = sum(sample_sizes), n_bins=(2-1)*(2-1) + 1, alpha = alpha)
+            cur_row['actual_es'] = calculate_effect_size(sample_sizes, successes)
+
+            #calculate chi squared contingency test
+            table = sms.Table(np.stack((successes,sample_sizes - successes)).T)
+            rslt = table.test_nominal_association()
+            cur_row['stat'] = rslt.statistic
+            cur_row['pvalue'] = rslt.pvalue
+            cur_row['df'] = rslt.df
+            # Added to match normal rewards
+            cur_row['statUnequalVar'] = cur_row['stat']
+            cur_row['pvalueUnequalVar'] = cur_row['pvalue']
+            cur_row['dfUnequalVar'] = cur_row['df']
+            cur_row['num_steps'] = max(one_sim_df.index) + 1
+    #        cur_row['num_steps'] = n_size 
+            cur_row['sim'] = sim_num
+
+            cur_row["prop_exploring_ppd_cuml"] = prop_exploring_ppd_cuml
+            cur_row["exploring_ppd_at_this_n"] = exploring_this_n
+
+            all_rows.append(cur_row)
+            sim_num += 1
 
     return all_rows
 
@@ -126,7 +146,7 @@ def calculate_statistics_from_sims(simulations_dfs_list, effect_size,
     columns=['num_steps', 'sim', 'sample_size_1', 'sample_size_2', 'mean_1',
         'mean_2', 'total_reward', 'ratio', 'power', 'actual_es', 'stat',
         'pvalue', 'df','statUnequalVar','pvalueUnequalVar', 'dfUnequalVar',
-        'wald_pval', 'wald_type_stat']
+        'wald_pval', 'wald_type_stat', "prop_exploring_ppd_cuml", "exploring_ppd_at_this_n"]
 
     all_rows_all_n = []
     for simulations_df in simulations_dfs_list:
@@ -364,7 +384,10 @@ def main():
         outfile_prefix += "N" + str(n) 
 
     for results_df, results_output_name in zip(results_dfs_list, results_output_names):
-        results_df.to_csv('{}_sims={}_m={}.csv.gz'.format(results_output_name, num_sims, random_dur_m), compression = "gzip")
+        results_df['SampleNumber'] = results_df.index
+
+#Not saving for now
+#        results_df.to_csv('{}_sims={}_m={}.csv.gz'.format(results_output_name, num_sims, random_dur_m), compression = "gzip", index=False)
 
     stats_df = calculate_statistics_from_sims(results_dfs_list,effect_size, num_arms, alpha = 0.05)
     stats_df.to_pickle(outfile_prefix + 'Df_sim={}_m={}_r={}.pkl'.format(num_sims, random_dur_m,random_start_r))
