@@ -4,11 +4,8 @@ numSims=5000
 
 timestamp=$(date +%F_%T)
 
-simSetDescriptive="../simulation_saves/TSPPDIsEffectTEST" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDIsEffectTest" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDIsEffect" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDIsEffectResample" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDIsEffectResampleFast" #Give descriptive name for directory to save set of sims
+
+simSetDescriptive="../simulation_saves/EpsilonTSIsEffect" #Give descriptive name for directory to save set of sims
 mkdir -p $simSetDescriptive
 
 effectSizesB=(0.1 0.2 0.3 0.5);
@@ -34,15 +31,15 @@ echo $armProb
 #c=0.1
 #c_list=(0.025 0.05 0.08 0.1 0.12 0.2 0.3); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
 #c_list=(0.08 0.1 0.12); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
-c_list=(0.025 0.05 0.1 0.2 0.3);
-c_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
-c_length=${#c_list[@]};
+epsilon_list=(0.025 0.05 0.1 0.2 0.3);
+epsilon_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
+epsilon_length=${#epsilon_list[@]};
 for ((i=0; i<$arrayLength; i++)); do
     curN=${nsB[$i]}
     curEffectSize=${effectSizesB[$i]}
-    for ((j=0; j<$c_length; j++)); do
-        c=${c_list[$j]}
-	root_armProb_es=$root_armProb/"es="$curEffectSize"c="$c
+    for ((j=0; j<$epsilon_length; j++)); do
+        epsilon=${epsilon_list[$j]}
+	root_armProb_es=$root_armProb/"es="$curEffectSize"epsilon="$epsilon
        # root_armProb_es=$root_armProb/"es="$curEffectSize
 
        # for ((j=0; j<$bsProps_len; j++)); do
@@ -62,8 +59,8 @@ for ((i=0; i<$arrayLength; i++)); do
 	echo $directoryName_ts
 	mkdir -p $directoryName_ts
 	
-	python3 run_effect_size_simulations_beta_fast_TSPPD.py \
-	$curEffectSize"-"$armProb $numSims $directoryName_ts "Thompson" $c 2> $directoryName_ts"/errorOutput.log" > $directoryName_ts"/output.log" &
+	python3 run_effect_size_simulations_beta_fast_EpsilonTS.py \
+	$curEffectSize"-"$armProb $numSims $directoryName_ts "Thompson" 2> $directoryName_ts"/errorOutput.log" > $directoryName_ts"/output.log" &
 	echo $!
        
 	#from equalmeans for reference
