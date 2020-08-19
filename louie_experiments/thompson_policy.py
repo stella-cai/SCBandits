@@ -811,7 +811,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
 
         # # The oracle always chooses the best arm, thus expected reward
         # # is simply the probability of that arm getting a reward.
-        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]] #* num_trials_prob_best_action
+        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]-1] #* num_trials_prob_best_action
         expected_regret = prob_per_arm[action] - optimal_expected_reward
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
@@ -939,7 +939,7 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
 
         # # The oracle always chooses the best arm, thus expected reward
         # # is simply the probability of that arm getting a reward.
-        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]] #* num_trials_prob_best_action
+        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]-1] #* num_trials_prob_best_action
         expected_regret = prob_per_arm[action] - optimal_expected_reward
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
