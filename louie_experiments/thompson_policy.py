@@ -29,25 +29,6 @@ class ActionSelectionMode(Enum):
     expected_value = 1
 
 
-def create_output_column_names_list_ppd(action_count):
-    column_names = []
-
-    column_names.extend([H_ALGO_ACTION,
-        H_ALGO_OBSERVED_REWARD,
-        H_ALGO_MATCH_OPTIMAL,
-        H_ALGO_REGRET_EXPECTED,
-        H_ALGO_REGRET_EXPECTED_CUMULATIVE])
-
-    for idx in range(1, action_count+1):
-        column_names.append(H_ALGO_ACTION_SUCCESS.format(idx))
-        column_names.append(H_ALGO_ACTION_FAILURE.format(idx))
-        column_names.append(H_ALGO_ESTIMATED_PROB.format(idx))
-
-    for idx in range(1, action_count+1):
-        column_names.append(H_ALGO_ACTION_SAMPLE.format(idx))
-    column_names.append(H_ALGO_EXPLORING)
-    return column_names
-
 def create_output_column_names_list(action_count):
     column_names = []
 
@@ -64,7 +45,7 @@ def create_output_column_names_list(action_count):
 
     for idx in range(1, action_count+1):
         column_names.append(H_ALGO_ACTION_SAMPLE.format(idx))
-
+    column_names.append(H_ALGO_EXPLORING)
     return column_names
 
 
@@ -648,7 +629,7 @@ def old_two_phase_random_thompson_policy(source, num_actions, dest,
         return chosen_actions, chosen_actions,models
 
 
-def create_output_list_ppd(selected_action, optimal_action, reward, expected_regret,
+def create_output_list(selected_action, optimal_action, reward, expected_regret,
         cumulative_expected_regret, models, samples, is_exploring, distribution='bernoulli'):
 
     if distribution != 'bernoulli':
@@ -676,33 +657,6 @@ def create_output_list_ppd(selected_action, optimal_action, reward, expected_reg
     data_list.append(is_exploring)
     return data_list
 
-def create_output_list(selected_action, optimal_action, reward, expected_regret,
-        cumulative_expected_regret, models, samples, distribution='bernoulli'):
-
-    if distribution != 'bernoulli':
-        raise ValueError('Not implemented yet!')
-
-    data_list = []
-    column_names = []
-
-    data_list.append(selected_action+1)
-    data_list.append(reward)
-    if isinstance(optimal_action, collections.abc.Iterable):
-        data_list.append(1 if (selected_action + 1) in optimal_action else 0)
-    else:
-        data_list.append(1 if optimal_action == (selected_action + 1) else 0)
-    data_list.append(expected_regret)
-    data_list.append(cumulative_expected_regret)
-    for model in models:
-        ls = model.get_parameters()
-        data_list.append(ls[0]) #number of success for a model
-        data_list.append(ls[1]) #number of failures for a model
-        data_list.append(ls[2]) #estimated reward probability
-    for sample in samples:
-        data_list.append(sample)
-
-    return data_list
-
 
 def two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
@@ -724,6 +678,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     # number of trials used to run Thompson Sampling to compute expectation stats
     # set to small value when debugging for faster speed
 
+    is_exploring = None
     if models == None:
         models = [BetaBern(success=1, failure=1) for cond in range(num_actions)]
 
@@ -756,9 +711,11 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
             samples = [models[a].draw_expected_value() for a in range(num_actions)]
 
             if epsilon > 0 and np.random.rand() < epsilon:
+                is_exploring = 1
                 action = np.random.randint(num_actions)
             elif action_mode == ActionSelectionMode.prob_is_best:
                 # find the max of samples[i] etc and choose an arm
+                is_exploring = 0
                 action = np.argmax(samples)
             else:
                 # take action in proportion to expected rewards
@@ -817,11 +774,13 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
         chosen_action_counts = 0
 
         measurements = create_output_list(action, all_optimal_actions,
-            reward, expected_regret, cumulative_expected_regret, models, samples)
+            reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
 
         simulated_results.append(measurements)
 
     column_names = create_output_column_names_list(num_actions)
+    return simulated_results, column_names, models
+
 
 def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
@@ -944,12 +903,12 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
 
-        measurements = create_output_list_ppd(action, all_optimal_actions,
+        measurements = create_output_list(action, all_optimal_actions,
             reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
 
         simulated_results.append(measurements)
 
-    column_names = create_output_column_names_list_ppd(num_actions)
+    column_names = create_output_column_names_list(num_actions)
     return simulated_results, column_names, models
 
 
