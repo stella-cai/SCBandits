@@ -1,13 +1,9 @@
 #!/bin/bash
 
-numSims=2
 numSims=5000
+#numSims=2
 
-simSetDescriptive="../simulation_saves/TSPPDNoEffect_c=0pt1" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDNoEffectTest" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDNoEffectResample" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDNoEffectResampleFastTest" #Give descriptive name for directory to save set of sims
-simSetDescriptive="../simulation_saves/TSPPDNoEffectResampleFast" #Give descriptive name for directory to save set of sims
+simSetDescriptive="../simulation_saves/EpsilonTSNoEffect" #Give descriptive name for directory to save set of sims
 mkdir -p $simSetDescriptive
 
 effectSizesB=(0.1 0.2 0.3 0.5); #switching now to 0.1,0.2,0.3,0.5
@@ -30,20 +26,17 @@ echo $armProb
 
 #0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.2
 
-c_list=(0.1); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
-c_list=(0.08 0.1 0.12); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
-c_list=(0.025 0.05 0.1 0.2 0.3);
-c_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
+epsilon_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
 
-c_length=${#c_list[@]};
+epsilon_length=${#epsilon_list[@]};
 for ((i=0; i<$arrayLength; i++)); do
     curN=${nsB[$i]}
     curEffectSize=${effectSizesB[$i]}
-    for ((j=0; j<$c_length; j++)); do
-	c=${c_list[$j]}
+    for ((j=0; j<$epsilon_length; j++)); do
+	epsilon=${epsilon_list[$j]}
 
     #    root_armProb_es=$root_armProb/"N="$curN
-	root_armProb_es=$root_armProb/"N="$curN"c="$c
+	root_armProb_es=$root_armProb/"N="$curN"epsilon="$epsilon
 
        # for ((j=0; j<$bsProps_len; j++)); do
 	curProp=${bsProps[0]}
@@ -67,7 +60,7 @@ for ((i=0; i<$arrayLength; i++)); do
 	#echo $!
        
 	#from equalmeans for reference
-	python3 run_effect_size_simulations_beta_fast_TSPPD.py \
+	python3 run_effect_size_simulations_beta_fast_EpsilonTS.py \
 	0.5,0.5 $numSims $directoryName_ts "Thompson" "armsEqual" $curN 2> $directoryName_ts"/errorOutput.log" > $directoryName_ts"/output.log" &
 	echo $!
 

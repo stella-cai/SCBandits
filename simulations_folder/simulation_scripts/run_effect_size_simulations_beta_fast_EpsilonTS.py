@@ -195,7 +195,7 @@ def get_output_filename(outfile_directory, num_steps, sim_num=None, mode=''):
 def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory,
     successPrior = 1, failurePrior = 1, softmax_beta = None,
     reordering_fn = None, forceActions = 0, batch_size = 1, burn_in_size = 1,
-    random_dur=0, random_start=0, mode='', c = 0.1, resample = True):
+    random_dur=0, random_start=0, mode='', epsilon = 0.1, resample = True):
     '''
     Runs num_sims bandit simulations with several different sample sizes (those in the list step_sizes). 
     Bandit uses the thompson_ng sampling policy.
@@ -223,7 +223,7 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory,
 
 
             sim_result, column_names,_ = \
-                thompson_policy.ppd_two_phase_random_thompson_policy(
+                thompson_policy.two_phase_random_thompson_policy(
                             prob_per_arm=prob_per_arm,
                             users_count=num_steps,
                             random_dur=random_dur,#100,
@@ -232,7 +232,7 @@ def run_simulations(num_sims, prob_per_arm, step_sizes, outfile_directory,
                             action_mode=thompson_policy.ActionSelectionMode.prob_is_best,
                             relearn=True,
                             forced = forced,
-                            batch_size = batch_size, c=c, resample = resample)
+                            batch_size = batch_size, epsilon=epsilon)
 
             sim_results.extend(sim_result)
 
@@ -265,22 +265,16 @@ def main():
     recalculate_bandits = True
     num_arms = 2
 
-    if "Resample" in outfile_directory:
-        resample = True
-    else:
-        resample = False
-    print("Resampling?", resample)
     #batch_size = 1.0
  #   if len(sys.argv) > 5:
   #      epsilon = float(sys.argv[5])
    #     print("epsilon", epsilon)
-    if "c=" in outfile_directory:
+    if "epsilon=" in outfile_directory:
         print(outfile_directory)
-        c = float(outfile_directory.split("c=")[-1].split("/")[0].strip("="))
+        epsilon = float(outfile_directory.split("epsilon=")[-1].split("/")[0].strip("="))
         #c = float(outfile_directory.split("=c=")[-1])
-        print("c", c)
+        print("epsilon", epsilon)
     
-    num_sims = int(sys.argv[2])
     num_sims = int(sys.argv[2])
     burn_in_size, batch_size = int(outfile_directory.split("=")[-1].split('-')[0]), int(outfile_directory.split("=")[-1].split('-')[1])
     print("burn_in_size, batch_size", burn_in_size, batch_size)
@@ -371,11 +365,11 @@ def main():
                     softmax_beta = softmax_beta, reordering_fn = reordering_fn,
                     forceActions = num_to_force, batch_size = batch_size,
                     burn_in_size = burn_in_size, random_dur=random_dur_m,
-                    random_start=random_start_r, c=c, resample = resample)
+                    random_start=random_start_r, epsilon=epsilon)
             else:
-                run_simulations(num_sims, prob_per_arm, step_sizes,
+                results_dfs_list, results_output_names = run_simulations(num_sims, prob_per_arm, step_sizes,
                     outfile_directory, forceActions = num_to_force,
-                    batch_size = batch_size, burn_in_size = burn_in_size, c=c, resample = resample)
+                    batch_size = batch_size, burn_in_size = burn_in_size, epsilon=epsilon)
 
 
     outfile_prefix = outfile_directory  + bandit_type_prefix + str(effect_size)
@@ -386,6 +380,8 @@ def main():
     for results_df, results_output_name in zip(results_dfs_list, results_output_names):
         results_df['SampleNumber'] = results_df.index
 
+        if num_sims <= 2:
+            results_df.to_csv('{}_sims={}_m={}.csv'.format(results_output_name, num_sims, random_dur_m), index=False)
 #Not saving for now
 #        results_df.to_csv('{}_sims={}_m={}.csv.gz'.format(results_output_name, num_sims, random_dur_m), compression = "gzip", index=False)
 

@@ -85,6 +85,13 @@ class BetaBern(BaseModel):
     def get_expected_value(self):
         return self.success / float(self.success + self.failure)
 
+    def get_mode(self):
+        return (self.success - 1) / float(self.success + self.failure - 2)
+
+    def get_std(self):
+        temp = np.sqrt(self.success*self.failure/float(self.success+self.failure+1))
+        return temp / float(self.success+self.failure)
+
     def save_state(self):
         self.last_success = self.success
         self.last_failure = self.failure
