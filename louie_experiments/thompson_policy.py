@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import csv
 import random
 import math
@@ -46,25 +46,6 @@ def create_output_column_names_list(action_count):
     for idx in range(1, action_count+1):
         column_names.append(H_ALGO_ACTION_SAMPLE.format(idx))
     column_names.append(H_ALGO_EXPLORING)
-    return column_names
-
-def create_output_column_names_list_old(action_count):
-    column_names = []
-
-    column_names.extend([H_ALGO_ACTION,
-        H_ALGO_OBSERVED_REWARD,
-        H_ALGO_MATCH_OPTIMAL,
-        H_ALGO_REGRET_EXPECTED,
-        H_ALGO_REGRET_EXPECTED_CUMULATIVE])
-
-    for idx in range(1, action_count+1):
-        column_names.append(H_ALGO_ACTION_SUCCESS.format(idx))
-        column_names.append(H_ALGO_ACTION_FAILURE.format(idx))
-        column_names.append(H_ALGO_ESTIMATED_PROB.format(idx))
-
-    for idx in range(1, action_count+1):
-        column_names.append(H_ALGO_ACTION_SAMPLE.format(idx))
-
     return column_names
 
 
@@ -676,33 +657,6 @@ def create_output_list(selected_action, optimal_action, reward, expected_regret,
     data_list.append(is_exploring)
     return data_list
 
-def create_output_list_old(selected_action, optimal_action, reward, expected_regret,
-        cumulative_expected_regret, models, samples, distribution='bernoulli'):
-
-    if distribution != 'bernoulli':
-        raise ValueError('Not implemented yet!')
-
-    data_list = []
-    column_names = []
-
-    data_list.append(selected_action+1)
-    data_list.append(reward)
-    if isinstance(optimal_action, collections.abc.Iterable):
-        data_list.append(1 if (selected_action + 1) in optimal_action else 0)
-    else:
-        data_list.append(1 if optimal_action == (selected_action + 1) else 0)
-    data_list.append(expected_regret)
-    data_list.append(cumulative_expected_regret)
-    for model in models:
-        ls = model.get_parameters()
-        data_list.append(ls[0]) #number of success for a model
-        data_list.append(ls[1]) #number of failures for a model
-        data_list.append(ls[2]) #estimated reward probability
-    for sample in samples:
-        data_list.append(sample)
-
-    return data_list
-
 
 def two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
@@ -724,6 +678,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     # number of trials used to run Thompson Sampling to compute expectation stats
     # set to small value when debugging for faster speed
 
+    is_exploring = None
     if models == None:
         models = [BetaBern(success=1, failure=1) for cond in range(num_actions)]
 
@@ -740,7 +695,6 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     action_batch = []
     reward_batch = []
     simulated_results = []
-    is_exploring = None
 
     for row in range(users_count): #going through trials
         sample_number += 1
@@ -764,7 +718,6 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
                 is_exploring = 0
                 action = np.argmax(samples)
             else:
-                print("Not Using TS!!")
                 # take action in proportion to expected rewards
                 # draw samples and normalize to use as a discrete distribution
                 # action is taken by sampling from this discrete distribution
@@ -776,7 +729,6 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
                         break
                     rand -= probs[a]
         else:
-            print("taking forced action")
             samples = [0 for a in range(num_actions)]
             # take forced action if requested
             action = forced.actions[sample_number - 1]
@@ -816,18 +768,19 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
 
         # # The oracle always chooses the best arm, thus expected reward
         # # is simply the probability of that arm getting a reward.
-        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]] #* num_trials_prob_best_action
+        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]-1] #* num_trials_prob_best_action
         expected_regret = prob_per_arm[action] - optimal_expected_reward
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
 
-
         measurements = create_output_list(action, all_optimal_actions,
             reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
+
         simulated_results.append(measurements)
 
     column_names = create_output_column_names_list(num_actions)
     return simulated_results, column_names, models
+
 
 def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
@@ -895,7 +848,6 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                     samples = [models[a].draw_expected_value() for a in range(num_actions)]
                 action = np.argmax(samples)
             else:
-                print("Not using TS")
                 # take action in proportion to expected rewards
                 # draw samples and normalize to use as a discrete distribution
                 # action is taken by sampling from this discrete distribution
@@ -907,13 +859,11 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                         break
                     rand -= probs[a]
         else:
-            print("taking forced action")
             samples = [0 for a in range(num_actions)]
             # take forced action if requested
             action = forced.actions[sample_number - 1]
 
             if relearn == False:
-                print("relearn False")
                 should_update_posterior = False
 
         sample = samples[action]
@@ -948,7 +898,7 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
 
         # # The oracle always chooses the best arm, thus expected reward
         # # is simply the probability of that arm getting a reward.
-        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]] #* num_trials_prob_best_action
+        optimal_expected_reward = prob_per_arm[all_optimal_actions[0]-1] #* num_trials_prob_best_action
         expected_regret = prob_per_arm[action] - optimal_expected_reward
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
@@ -1360,3 +1310,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
