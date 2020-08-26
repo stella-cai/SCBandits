@@ -29,7 +29,7 @@ class ActionSelectionMode(Enum):
     expected_value = 1
 
 
-def create_output_column_names_list_ppd(action_count):
+def create_output_column_names_list(action_count):
     column_names = []
 
     column_names.extend([H_ALGO_ACTION,
@@ -48,7 +48,7 @@ def create_output_column_names_list_ppd(action_count):
     column_names.append(H_ALGO_EXPLORING)
     return column_names
 
-def create_output_column_names_list(action_count):
+def create_output_column_names_list_old(action_count):
     column_names = []
 
     column_names.extend([H_ALGO_ACTION,
@@ -648,7 +648,7 @@ def old_two_phase_random_thompson_policy(source, num_actions, dest,
         return chosen_actions, chosen_actions,models
 
 
-def create_output_list_ppd(selected_action, optimal_action, reward, expected_regret,
+def create_output_list(selected_action, optimal_action, reward, expected_regret,
         cumulative_expected_regret, models, samples, is_exploring, distribution='bernoulli'):
 
     if distribution != 'bernoulli':
@@ -676,7 +676,7 @@ def create_output_list_ppd(selected_action, optimal_action, reward, expected_reg
     data_list.append(is_exploring)
     return data_list
 
-def create_output_list(selected_action, optimal_action, reward, expected_regret,
+def create_output_list_old(selected_action, optimal_action, reward, expected_regret,
         cumulative_expected_regret, models, samples, distribution='bernoulli'):
 
     if distribution != 'bernoulli':
@@ -740,6 +740,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     action_batch = []
     reward_batch = []
     simulated_results = []
+    is_exploring = None
 
     for row in range(users_count): #going through trials
         sample_number += 1
@@ -756,11 +757,14 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
             samples = [models[a].draw_expected_value() for a in range(num_actions)]
 
             if epsilon > 0 and np.random.rand() < epsilon:
+                is_exploring = 1
                 action = np.random.randint(num_actions)
             elif action_mode == ActionSelectionMode.prob_is_best:
                 # find the max of samples[i] etc and choose an arm
+                is_exploring = 0
                 action = np.argmax(samples)
             else:
+                print("Not Using TS!!")
                 # take action in proportion to expected rewards
                 # draw samples and normalize to use as a discrete distribution
                 # action is taken by sampling from this discrete distribution
@@ -772,6 +776,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
                         break
                     rand -= probs[a]
         else:
+            print("taking forced action")
             samples = [0 for a in range(num_actions)]
             # take forced action if requested
             action = forced.actions[sample_number - 1]
@@ -816,12 +821,13 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
 
-        measurements = create_output_list(action, all_optimal_actions,
-            reward, expected_regret, cumulative_expected_regret, models, samples)
 
+        measurements = create_output_list(action, all_optimal_actions,
+            reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
         simulated_results.append(measurements)
 
     column_names = create_output_column_names_list(num_actions)
+    return simulated_results, column_names, models
 
 def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
@@ -889,6 +895,7 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                     samples = [models[a].draw_expected_value() for a in range(num_actions)]
                 action = np.argmax(samples)
             else:
+                print("Not using TS")
                 # take action in proportion to expected rewards
                 # draw samples and normalize to use as a discrete distribution
                 # action is taken by sampling from this discrete distribution
@@ -900,11 +907,13 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
                         break
                     rand -= probs[a]
         else:
+            print("taking forced action")
             samples = [0 for a in range(num_actions)]
             # take forced action if requested
             action = forced.actions[sample_number - 1]
 
             if relearn == False:
+                print("relearn False")
                 should_update_posterior = False
 
         sample = samples[action]
@@ -944,12 +953,12 @@ def ppd_two_phase_random_thompson_policy(prob_per_arm, users_count,
         cumulative_expected_regret += expected_regret
         chosen_action_counts = 0
 
-        measurements = create_output_list_ppd(action, all_optimal_actions,
+        measurements = create_output_list(action, all_optimal_actions,
             reward, expected_regret, cumulative_expected_regret, models, samples, is_exploring)
 
         simulated_results.append(measurements)
 
-    column_names = create_output_column_names_list_ppd(num_actions)
+    column_names = create_output_column_names_list(num_actions)
     return simulated_results, column_names, models
 
 

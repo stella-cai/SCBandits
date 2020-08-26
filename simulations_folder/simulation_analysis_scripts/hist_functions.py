@@ -2,12 +2,13 @@ import matplotlib
 matplotlib.use('Agg')
 import pickle
 import os
+#import ipdb
 import statsmodels.stats.power as smp
 from rectify_vars_and_wald_functions import *
 import pandas as pd 
 import matplotlib.pyplot as plt 
 import sys
-sys.path.insert(1, '../../louie_experiments/')
+sys.path.insert(1, '../../../louie_experiments/')
 # print(data)
 import numpy as np
 import os
@@ -379,6 +380,96 @@ def hist_means_diff(df_eg0pt1 = None, df_eg0pt3 = None, df_unif = None, n = None
     plt.clf()
     plt.close()
 
+def hist_cond1(df_eg0pt1 = None, df_eg0pt3 = None,\
+               df_unif = None, df_ts = None, df_tsppd = None, df_ets = None,\
+               n = None, num_sims = None,\
+                     title = None):
+    '''
+
+    '''
+      
+
+    #print(data)
+    fig, ax = plt.subplots(2,2)       
+    fig.set_size_inches(14.5, 10.5)
+    ax = ax.ravel()
+    i = 0                               
+    
+    step_sizes = df_unif['num_steps'].unique()
+    size_vars = ["n/2", "n", "2*n", "4*n"]
+
+    for num_steps in step_sizes:
+   
+        
+        df_for_num_steps_eg0pt1 = df_eg0pt1[df_eg0pt1['num_steps'] == num_steps]
+        df_for_num_steps_eg0pt3 = df_eg0pt3[df_eg0pt3['num_steps'] == num_steps]
+        df_for_num_steps_unif = df_unif[df_unif['num_steps'] == num_steps]
+        df_for_num_steps_ts = df_ts[df_ts['num_steps'] == num_steps]
+        df_for_num_steps_tsppd = df_tsppd[df_tsppd['num_steps'] == num_steps]
+        df_for_num_steps_ets = df_ets[df_ets['num_steps'] == num_steps]
+
+       # bins = np.arange(0, 1.01, .025)
+
+
+
+        num_replications = len(df_for_num_steps_eg0pt1)
+
+        df_for_num_steps_diff_eg0pt1 = df_for_num_steps_eg0pt1["sample_size_1"]/num_steps
+        df_for_num_steps_diff_eg0pt3 = df_for_num_steps_eg0pt3["sample_size_1"]/num_steps
+
+
+        df_for_num_steps_diff_unif = df_for_num_steps_unif["sample_size_1"]/num_steps
+        df_for_num_steps_diff_ts = df_for_num_steps_ts["sample_size_1"]/num_steps
+        df_for_num_steps_diff_tsppd = df_for_num_steps_tsppd["sample_size_1"]/num_steps
+        df_for_num_steps_diff_ets = df_for_num_steps_ets["sample_size_1"]/num_steps
+
+
+
+
+        alpha = 0.6 
+#        ax[i].hist(df_for_num_steps_diff_unif, normed = False, alpha = alpha, label = "Uniform: mean = {} var = {}".format(round(np.mean(df_for_num_steps_diff_unif),2), round(np.var(df_for_num_steps_diff_unif), 3)), color = "red")
+#        ax[i].hist(df_for_num_steps_diff_ts, normed = False, alpha = alpha, label = "Thompson Sampling: mean = {} std = {}".format(round(np.mean(df_for_num_steps_diff_ts),2), round(np.std(df_for_num_steps_diff_ts), 3)), color = "blue")
+#        ax[i].hist(df_for_num_steps_diff_eg0pt1, normed = False, alpha = alpha, label = "Epsilon Greedy 0.1: mean = {} var = {}".format(round(np.mean(df_for_num_steps_diff_eg0pt1),2), round(np.var(df_for_num_steps_diff_eg0pt1), 3)), color = "yellow")
+ #       ax[i].hist(df_for_num_steps_diff_eg0pt3, normed = False, alpha = alpha, label = "Epsilon Greedy 0.3: mean = {} var = {}".format(round(np.mean(df_for_num_steps_diff_eg0pt3),2), round(np.var(df_for_num_steps_diff_eg0pt3), 3)), color = "green")
+
+        binwidth = 0.1
+        bins=np.arange(0, 1 + binwidth, binwidth)
+
+        ax[i].hist(df_for_num_steps_diff_tsppd, normed = False, alpha = alpha, label = "PostDiff TS 0.1: mean = {} std = {}".format(round(np.mean(df_for_num_steps_diff_tsppd),2), round(np.std(df_for_num_steps_diff_tsppd), 3)), color = "purple", bins = bins)
+        ax[i].hist(df_for_num_steps_diff_ets, normed = False, alpha = alpha, label = "Epsilon TS 0.1: mean = {} std = {}".format(round(np.mean(df_for_num_steps_diff_ets),2), round(np.std(df_for_num_steps_diff_ets), 3)), color = "green", bins = bins)
+
+
+        ax[i].set_xlabel("Proportion of Samples in Condition 1" + " for number of participants = {} = {}".format(size_vars[i], num_steps))
+        ax[i].legend()
+        ax[i].set_ylim(0,num_sims)
+        ax[i].set_ylabel("Number of Simulations")
+        i +=1  
+    fig.suptitle(title)
+    #fig.tight_layout(rect=[0, 0.03, 1, 0.90])
+      # if not os.path.isdir("plots"):
+      #    os.path.mkdir("plots")
+    save_dir_ne =  "../simulation_analysis_saves/cond1_hist/NoEffect/"
+    save_dir_e =  "../simulation_analysis_saves/cond1_hist/Effect/"
+    Path(save_dir_ne).mkdir(parents=True, exist_ok=True)
+    Path(save_dir_e).mkdir(parents=True, exist_ok=True)
+
+
+    save_str_ne = save_dir_ne + "/{}.png".format(title) 
+    save_str_e = save_dir_e + "/{}.png".format(title) 
+
+
+#    save_str_ne = "../simulation_analysis_saves/imba_hist/NoEffect/{}.png".format(title) 
+#    save_str_e = "../simulation_analysis_saves/imba_hist/Effect/{}.png".format(title) 
+    if "No Effect" in title:
+	    print("saving to ", save_str_ne)
+	    fig.savefig(save_str_ne)
+    elif "With Effect" in title:
+	    print("saving to ", save_str_e)
+	    fig.savefig(save_str_e)
+
+      #plt.show()
+    plt.clf()
+    plt.close()
 
 
 def hist_imba(df_eg0pt1 = None, df_eg0pt3 = None, df_unif = None, n = None, num_sims = None, \

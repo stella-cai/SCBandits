@@ -2,12 +2,12 @@ import matplotlib
 matplotlib.use('Agg')
 import pickle
 import os
-import ipdb
+#import ipdb
 import statsmodels.stats.power as smp
 import pandas as pd 
 import matplotlib.pyplot as plt 
 import sys
-sys.path.insert(1, '../../louie_experiments/')
+sys.path.insert(0, '../../louie_experiments/')
 # print(data)
 import numpy as np
 import os
