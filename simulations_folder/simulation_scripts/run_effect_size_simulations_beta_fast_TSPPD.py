@@ -386,6 +386,8 @@ def main():
     for results_df, results_output_name in zip(results_dfs_list, results_output_names):
         results_df['SampleNumber'] = results_df.index
 
+        if num_sims <= 2:
+            results_df.to_csv('{}_sims={}_m={}.csv'.format(results_output_name, num_sims, random_dur_m), index=False)
 #Not saving for now
 #        results_df.to_csv('{}_sims={}_m={}.csv.gz'.format(results_output_name, num_sims, random_dur_m), compression = "gzip", index=False)
 

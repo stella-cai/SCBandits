@@ -1,5 +1,5 @@
 #------NEW
-numSims=5000
+numSims=2
 #variancesT=(5.0 2.0 1.25); # Note: we're not crossing nsT and variancesT because variancesT is actual variance with ES with that num steps
 
 timestamp=$(date +%F_%T)
@@ -36,6 +36,7 @@ echo $armProb
 #c_list=(0.08 0.1 0.12); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
 c_list=(0.025 0.05 0.1 0.2 0.3);
 c_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
+c_list=(0.0);
 c_length=${#c_list[@]};
 for ((i=0; i<$arrayLength; i++)); do
     curN=${nsB[$i]}

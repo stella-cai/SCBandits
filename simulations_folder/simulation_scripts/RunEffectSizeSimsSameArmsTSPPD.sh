@@ -1,7 +1,6 @@
 #!/bin/bash
 
 numSims=2
-numSims=5000
 
 simSetDescriptive="../simulation_saves/TSPPDNoEffect_c=0pt1" #Give descriptive name for directory to save set of sims
 simSetDescriptive="../simulation_saves/TSPPDNoEffectTest" #Give descriptive name for directory to save set of sims
@@ -34,6 +33,7 @@ c_list=(0.1); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12]
 c_list=(0.08 0.1 0.12); #[0.025, 0.05, 0.1, 0.2, 0.3],  [0.08, 0.1, 0.12] 
 c_list=(0.025 0.05 0.1 0.2 0.3);
 c_list=(0.025 0.05 0.075 0.1 0.125 0.15 0.2);
+c_list=(0.0);
 
 c_length=${#c_list[@]};
 for ((i=0; i<$arrayLength; i++)); do
