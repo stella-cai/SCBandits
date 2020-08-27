@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #------NEW
 numSims=2
 #variancesT=(5.0 2.0 1.25); # Note: we're not crossing nsT and variancesT because variancesT is actual variance with ES with that num steps
