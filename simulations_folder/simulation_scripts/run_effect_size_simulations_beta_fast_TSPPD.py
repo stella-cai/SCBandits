@@ -393,6 +393,7 @@ def main():
 
     stats_df = calculate_statistics_from_sims(results_dfs_list,effect_size, num_arms, alpha = 0.05)
     stats_df.to_pickle(outfile_prefix + 'Df_sim={}_m={}_r={}.pkl'.format(num_sims, random_dur_m,random_start_r))
+    stats_df.to_csv(outfile_prefix + 'Df_sim={}_m={}_r={}.csv'.format(num_sims, random_dur_m,random_start_r))
 
     end_time = time.time()
     print('Execution time = %.6f seconds' % (end_time-start_time))

@@ -467,15 +467,18 @@ def main():
 
     df = calculate_statistics_from_sims(outfile_directory, num_sims, step_sizes, effect_size, DESIRED_ALPHA)
     df.to_pickle(outfile_prefix + 'Df.pkl')
+    df.to_csv(outfile_prefix + 'Df.csv')
     df_by_trial = calculate_by_trial_statistics_from_sims(outfile_directory, num_sims, step_sizes, effect_size, DESIRED_ALPHA)
 
     df_by_trial.to_pickle(outfile_prefix + 'DfByTrial.pkl')
+    df_by_trial.to_csv(outfile_prefix + 'DfByTrial.csv')
     # Print various stats
     summary_text = effect_size_sim_output_viz.print_output_stats(df, prob_per_arm, False, prior_params = prior_params, reordering_info = softmax_beta)
     with open(outfile_prefix + 'SummaryText.txt', 'w', newline='') as outf:
         outf.write(summary_text)
     overall_stats_df = effect_size_sim_output_viz.make_overall_stats_df(df, prob_per_arm, False, effect_size)
     overall_stats_df.to_pickle(outfile_prefix + 'OverallStatsDf.pkl')
+    overall_stats_df.to_csv(outfile_prefix + 'OverallStatsDf.csv')
      
     # Make histogram
     hist_figure = effect_size_sim_output_viz.make_hist_of_trials(df)
@@ -545,16 +548,19 @@ def empirical_main():
     step_sizes = [max_steps]
     df = calculate_statistics_from_sims(outfile_directory, num_sims, step_sizes, effect_size, DESIRED_ALPHA)
     df.to_pickle(outfile_prefix + 'Df.pkl')
+    df.to_csv(outfile_prefix + 'Df.csv')
     df_by_trial = calculate_by_trial_statistics_from_sims(outfile_directory, num_sims, step_sizes, effect_size, DESIRED_ALPHA)
 
     df_by_trial.to_pickle(outfile_prefix + 'DfByTrial.pkl')
+    df_by_trial.to_csv(outfile_prefix + 'DfByTrial.csv')
     # Print various stats
     summary_text = effect_size_sim_output_viz.print_output_stats(df, prob_per_arm, False, prior_params = prior_params, reordering_info = 0)
     with open(outfile_prefix + 'SummaryText.txt', 'w', newline='') as outf:
         outf.write(summary_text)
     overall_stats_df = effect_size_sim_output_viz.make_overall_stats_df(df, prob_per_arm, False, effect_size)
     overall_stats_df.to_pickle(outfile_prefix + 'OverallStatsDf.pkl')
-     
+    overall_stats_df.to_csv(outfile_prefix + 'OverallStatsDf.csv')
+
     # Make histogram
     hist_figure = effect_size_sim_output_viz.make_hist_of_trials(df)
     hist_figure.savefig(outfile_prefix + 'HistOfConditionProportions.pdf', bbox_inches='tight')
