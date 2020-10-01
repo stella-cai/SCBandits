@@ -4,6 +4,7 @@ import random
 import math
 import numpy as np
 import collections
+from math import sqrt
 from forced_actions import forced_actions
 from enum import Enum
 from bandit_data_format import *
@@ -660,8 +661,10 @@ def create_output_list(selected_action, optimal_action, reward, expected_regret,
 
 def two_phase_random_thompson_policy(prob_per_arm, users_count,
                                     random_dur, models=None, random_start = 0,
-                                    action_mode=ActionSelectionMode.prob_is_best, forced=forced_actions(),
-                                    relearn=True, epsilon = 0, get_context=get_context, batch_size = 1):
+                                    action_mode=ActionSelectionMode.prob_is_best,
+                                    forced=forced_actions(), relearn=True,
+                                    epsilon = 0, get_context=get_context,
+                                    batch_size = 1, decreasing_epsilon=0):
     '''
     Calculates non-contextual thompson sampling actions and weights.
     :param source: simulated single-bandit data file with default rewards for each action and true probs.
@@ -674,6 +677,7 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
     :param forced: Optional, indicates to process only up to a certain time step or force take specified actions.
     :param relearn: Optional, at switch time, whether algorithm relearns on previous time steps using actions taken previously.
     :param epsilon: Optional, if > 0 then we choose a random action epsilon proportion of the time
+    :param decreasing_epsilon: Optional, if epsilon>0 and decreasing_epsilon=1, epsilon will decrease with 1/sqrt(n) rate
     '''
     # number of trials used to run Thompson Sampling to compute expectation stats
     # set to small value when debugging for faster speed
@@ -700,8 +704,8 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
         sample_number += 1
 
         batch_size_curr = batch_size
-
         should_update_posterior = True
+
         if sample_number > random_start and sample_number <= (random_dur+random_start):
             action = np.random.randint(num_actions)
             samples = [models[a].draw_expected_value() for a in range(num_actions)]
@@ -710,7 +714,12 @@ def two_phase_random_thompson_policy(prob_per_arm, users_count,
             # (do the random sampling, the max is the one we'd choose)
             samples = [models[a].draw_expected_value() for a in range(num_actions)]
 
-            if epsilon > 0 and np.random.rand() < epsilon:
+            if decreasing_epsilon:
+                epslion_new = epsilon / sqrt(sample_number-len(forced.actions))
+            else:
+                epslion_new = epsilon
+
+            if epslion_new > 0 and np.random.rand() < epslion_new:
                 is_exploring = 1
                 action = np.random.randint(num_actions)
             elif action_mode == ActionSelectionMode.prob_is_best:
