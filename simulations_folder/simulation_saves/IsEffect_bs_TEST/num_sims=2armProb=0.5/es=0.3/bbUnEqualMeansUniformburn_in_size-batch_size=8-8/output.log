@@ -1,3 +1,4 @@
 burn_in_size, batch_size 8 8
 center 0.5
 prob_per_arm [0.65, 0.35]
+Execution time = 3.444909 seconds
